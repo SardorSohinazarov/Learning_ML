@@ -3,13 +3,13 @@ using Microsoft.ML;
 public class SimilarityService
 {
     private readonly MLContext _ml = new MLContext();
-    private List<Offer> _items = new List<Offer>();
+    private List<Offer> offers = new List<Offer>();
     private List<float[]> _vectors = new List<float[]>();
 
-    public void BuildIndex(List<Offer> items)
+    public void BuildIndex(List<Offer> offers)
     {
-        _items = items;
-        var docs = items.Select(i => new TextData { Text = (i.Name + " " + i.Description).ToLowerInvariant() }).ToList();
+        this.offers = offers;
+        var docs = offers.Select(i => new TextData { Text = (i.Name + " " + i.Description).ToLowerInvariant() }).ToList();
         var data = _ml.Data.LoadFromEnumerable(docs);
         var pipeline = _ml.Transforms.Text.FeaturizeText("Features", nameof(TextData.Text));
         var model = pipeline.Fit(data);
@@ -37,24 +37,24 @@ public class SimilarityService
 
     public List<(Offer Item, float Score)> GetSimilar(int id, int take = 5, bool allowCrossType = true)
     {
-        var idx = _items.FindIndex(i => i.Id == id);
+        var idx = offers.FindIndex(i => i.Id == id);
         if (idx == -1) return new List<(Offer, float)>();
 
-        var target = _items[idx];
+        var target = offers[idx];
         var targetVec = _vectors[idx];
 
         var results = new List<(Offer, float)>();
-        for (int i = 0; i < _items.Count; i++)
+        for (int i = 0; i < offers.Count; i++)
         {
-            if (_items[i].Id == id) continue;
-            if (!allowCrossType && _items[i].Type != target.Type) continue;
+            if (offers[i].Id == id) continue;
+            if (!allowCrossType && offers[i].Type != target.Type) continue;
 
             var textSimilarity = Cosine(targetVec, _vectors[i]);
-            var categorySimilarity = CategorySimilarity(target.CategoryId, _items[i].CategoryId);
-            var priceSimilarity = PriceSimilarity(target.Price, _items[i].Price);
+            var categorySimilarity = CategorySimilarity(target.CategoryId, offers[i].CategoryId);
+            var priceSimilarity = PriceSimilarity(target.Price, offers[i].Price);
 
             var final = 0.4f * textSimilarity + 0.5f * categorySimilarity + 0.1f * priceSimilarity;
-            results.Add((_items[i], final));
+            results.Add((offers[i], final));
         }
 
         return results.OrderByDescending(r => r.Item2).Take(take).ToList();
