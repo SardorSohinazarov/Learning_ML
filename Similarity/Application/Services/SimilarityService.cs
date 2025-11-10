@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using Similarity.Application.Helpers;
+using System;
+using System.Text.Json;
 
 public class SimilarityService(AppDbContext db) 
 {
@@ -57,5 +59,32 @@ public class SimilarityService(AppDbContext db)
         var padded = new float[length];
         Array.Copy(vec, padded, vec.Length);
         return padded;
+    }
+
+    public async Task<List<OfferDto>> SearchAsync(string search, int take)
+    {
+        var queryVec = VectorHelper.ComputeVector(search);
+
+        // 2️⃣ DBdan subsetni o'qi (masalan, type filter yoki category filter qo'shish mumkin)
+        var offers = db.Offers
+                        .Where(o => o.VectorJson != null)
+                        .AsEnumerable() // client-side, vector bilan ishlash uchun
+                        .ToList();
+
+        // 3️⃣ Cosine similarity hisoblash
+        var results = offers.Select(o =>
+        {
+            var vec = JsonSerializer.Deserialize<float[]>(o.VectorJson);
+            var maxLen = Math.Max(queryVec.Length, vec.Length);
+            var v1 = PadVector(queryVec, maxLen);
+            var v2 = PadVector(vec, maxLen);
+            var textSim = Cosine(v1, v2);
+            return o.MapToDto(textSim);
+        })
+        .OrderByDescending(r => r.Score)
+        .Take(take)
+        .ToList();
+
+        return results;
     }
 }
