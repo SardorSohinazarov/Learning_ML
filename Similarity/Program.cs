@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Similarity.Application.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,9 +8,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseInMemoryDatabase("CatalogDb"));
+    options.UseSqlServer("Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Similarity_ML;"));
 
-builder.Services.AddSingleton<SimilarityService>();
+builder.Services.AddScoped<SimilarityService>();
 
 var app = builder.Build();
 
@@ -17,8 +18,6 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     DbSeeder.Seed(db);
-    var svc = scope.ServiceProvider.GetRequiredService<SimilarityService>();
-    svc.BuildIndex(db.CatalogItems.ToList()); // build TF-IDF vectors once on startup
 }
 
 if (app.Environment.IsDevelopment())
