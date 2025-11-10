@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.ML.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
